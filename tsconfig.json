@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "allowJs": true,
+    "typeRoots": ["./node_modules/@types"],
+    "types": ["node"]
+  },
+  "include": ["tests", "playwright.config.ts"]
+}
