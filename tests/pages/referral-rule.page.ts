@@ -1,9 +1,10 @@
 import { expect, type Locator, type Page, type Response } from '@playwright/test';
+import { BO_BASE_URL } from './bo-env';
 
 export type ReferralCalculateType = 'Turnover' | 'Cashback';
 
 export class ReferralRulePage {
-  static readonly URL = 'https://dev-manage.nonprod-lux.com/affiliate/rule';
+  static readonly URL = `${BO_BASE_URL}/affiliate/rule`;
   static readonly RULE_API = '/bo/affiliate-rule';
   static readonly CONFIG_API = '/bo/affiliate-config';
   /** Where the Level 1 column sits in a row of the rule list. */

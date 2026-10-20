@@ -1,8 +1,10 @@
 import { expect, type Locator, type Page } from '@playwright/test';
+import { BO_BASE_URL } from './bo-env';
 import { type RegisterBy } from './register.page';
+import { totp, totpRemaining } from './totp';
 
 export class BackOfficePage {
-  static readonly LOGIN_URL = 'https://dev-manage.nonprod-lux.com/account/login';
+  static readonly LOGIN_URL = `${BO_BASE_URL}/account/login`;
   static readonly REGISTER_CONFIG_API = 'https://dev-apiapi-bgapi.nonprod-lux.com/bo/register-config';
   static readonly OTP_CONFIG_API = 'https://dev-apiapi-api.nonprod-lux.com/bo/otp-config';
 
@@ -29,6 +31,8 @@ export class BackOfficePage {
 
   /** Logs in through the UI and returns the token the back office then sends to its API. */
   async login(username: string, password: string): Promise<string> {
+    // UAT opens in Thai, and the locators here go by the English texts.
+    await this.page.context().addCookies([{ name: 'lang', value: 'en', url: BO_BASE_URL }]);
     await this.page.goto(BackOfficePage.LOGIN_URL, { waitUntil: 'domcontentloaded' });
     await this.usernameInput.fill(username);
     await this.passwordInput.fill(password);
@@ -37,8 +41,49 @@ export class BackOfficePage {
       (request) => request.url().includes('/bo/') && /^Bearer /.test(request.headers()['authorization'] ?? ''),
     );
     await this.loginButton.click();
+    await this.passTwoFactor(username);
     this.authorization = (await authorizedRequest).headers()['authorization'];
     return this.authorization;
+  }
+
+  /**
+   * UAT asks for a 2FA code after the password; dev and stg go straight in.
+   * The code comes from BO_TOTP_SECRET, the secret key the back office showed when 2FA was set up.
+   */
+  private async passTwoFactor(username: string) {
+    const twoFactor = this.page.getByRole('heading', { name: /Two-Factor Authentication/i });
+    await expect
+      .poll(async () => !this.page.url().startsWith(BackOfficePage.LOGIN_URL) || (await twoFactor.isVisible()), {
+        message: 'Login neither left the login page nor asked for 2FA',
+        // dev at times takes well over 5 seconds to answer the login.
+        timeout: 30_000,
+      })
+      .toBe(true);
+    if (!(await twoFactor.isVisible())) return;
+
+    const codeInput = this.page.getByPlaceholder('Enter 6 Digits Code');
+    // An account without 2FA is shown a new secret key to set up first. Setting it up ties the
+    // account to that key, so it is left to a person, who then puts the key in .env.
+    if (!(await codeInput.isVisible()) && (await this.page.getByRole('button', { name: 'Next' }).isVisible())) {
+      throw new Error(
+        `${username} has no 2FA set up on ${BO_BASE_URL}. Log in by hand once, add the secret key to an ` +
+          'authenticator app, finish the setup, and put the same key in .env as BO_TOTP_SECRET.',
+      );
+    }
+
+    const secret = process.env.BO_TOTP_SECRET;
+    if (!secret) throw new Error(`${BO_BASE_URL} asks for a 2FA code: set BO_TOTP_SECRET in .env`);
+
+    // A code about to run out may be stale by the time it reaches the server, so wait for the next one.
+    if (totpRemaining() < 3_000) await this.page.waitForTimeout(totpRemaining() + 500);
+    await codeInput.fill(totp(secret));
+    await this.page
+      .getByRole('button', { name: /^(Next|Verify|Confirm|Submit|Login)$/ })
+      .and(this.page.locator(':enabled'))
+      .first()
+      .click();
+    // UAT can take well over the default 5 seconds to check the code and leave the login page.
+    await expect(this.page, 'The 2FA code was not accepted').not.toHaveURL(BackOfficePage.LOGIN_URL, { timeout: 30_000 });
   }
 
   /** Opens a page from the left menu, e.g. `openMenu('6. Point', '6.3 Point Rule')`. */

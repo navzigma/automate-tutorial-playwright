@@ -17,8 +17,8 @@ const PROVIDER = process.env.RULE_PROVIDER;
 const POINT_RULE = { status: 'Active', turnover: '50' } as const;
 
 const RATE_RULE = {
-  memberLevelRate: '0.1',
-  turnoverTier: { minAmount: '1', maxAmount: '999999999', rate: '0.9' },
+  memberLevelRate: '1',
+  turnoverTier: { minAmount: '1', maxAmount: '999999999', rate: '1' },
 };
 
 // The rate goes to every referral level the referral config leaves open.
@@ -31,7 +31,8 @@ const RATE_RULE_CASES: { id: string; kind: RateRuleKind; menu: [string, string] 
 
 /** True when the back office refused to create a rule because that rule already exists. */
 async function isDuplicate(response: Response): Promise<boolean> {
-  return response.status() === 422 && /duplicate/i.test(await response.text());
+  // dev answers 422 and stg 400 for the same duplicate.
+  return [400, 422].includes(response.status()) && /duplicate/i.test(await response.text());
 }
 
 /** Notes in the report that a rule was already there, so nothing was created this run. */

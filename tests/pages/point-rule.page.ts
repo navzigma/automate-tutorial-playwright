@@ -1,4 +1,5 @@
 import { type Locator, type Page, type Response } from '@playwright/test';
+import { BO_BASE_URL } from './bo-env';
 
 export interface PointRuleData {
   gameCategory: string;
@@ -8,7 +9,7 @@ export interface PointRuleData {
 }
 
 export class PointRulePage {
-  static readonly URL = 'https://dev-manage.nonprod-lux.com/point/rule';
+  static readonly URL = `${BO_BASE_URL}/point/rule`;
   static readonly RULE_API = '/bo/point-rule';
   static readonly GAME_CATEGORY_API = '/bo/info/game-category-provider?provider_id=';
 

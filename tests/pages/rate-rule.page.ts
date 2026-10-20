@@ -1,4 +1,5 @@
 import { expect, type Locator, type Page, type Response } from '@playwright/test';
+import { BO_BASE_URL } from './bo-env';
 
 /** Rebate and cashback rules share one form; only the wording and the URL differ. */
 export type RateRuleKind = 'rebate' | 'cashback';
@@ -31,7 +32,7 @@ export class RateRulePage {
     readonly page: Page,
     readonly kind: RateRuleKind,
   ) {
-    this.url = `https://dev-manage.nonprod-lux.com/${kind}/rule`;
+    this.url = `${BO_BASE_URL}/${kind}/rule`;
     this.ruleApi = `/bo/${kind}-rule`;
 
     this.searchButton = page.getByRole('button', { name: 'Search' });
